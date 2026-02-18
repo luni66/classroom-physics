@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Piano Inclinato Interattivo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 1100px;
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+            text-align: center;
+            font-size: 24px;
+        }
+        .content-wrapper {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        canvas {
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            cursor: grab;
+            background: #f8f9fa;
+            flex-shrink: 0;
+        }
+        canvas:active {
+            cursor: grabbing;
+        }
+        .sidebar {
+            min-width: 250px;
+        }
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .info {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 10px;
+        }
+        .info-item {
+            background: white;
+            padding: 8px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .info-item label {
+            font-weight: bold;
+            color: #555;
+            display: block;
+            margin-bottom: 3px;
+            font-size: 13px;
+        }
+        .info-item value {
+            color: #667eea;
+            font-size: 15px;
+            font-weight: bold;
+        }
+        .info-item input[type="range"] {
+            width: 100%;
+            margin-top: 5px;
+            cursor: pointer;
+        }
+        .info-item input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #667eea;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        .info-item input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #667eea;
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
+        }
+        .info-item input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            background: #ddd;
+            border-radius: 3px;
+        }
+        .info-item input[type="range"]::-moz-range-track {
+            width: 100%;
+            height: 6px;
+            background: #ddd;
+            border-radius: 3px;
+        }
+        .legend {
+            margin-top: 12px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 12px;
+        }
+        .legend-color {
+            width: 25px;
+            height: 3px;
+            margin-right: 8px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+        .instructions {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 10px;
+            font-style: italic;
+            padding: 8px;
+            background: white;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔺 Piano Inclinato con Forze</h1>
+        
+        <div class="content-wrapper">
+            <div class="sidebar">
+                <div class="info">
+                    <div class="info-item">
+                        <label>Angolo (θ)</label>
+                        <value id="angle">30°</value>
+                        <input type="range" id="angleSlider" min="0" max="85" value="30" step="1">
+                    </div>
+                    <div class="info-item">
+                        <label>Massa (m)</label>
+                        <value id="mass">5.0 kg</value>
+                        <input type="range" id="massSlider" min="1" max="20" value="5" step="0.5">
+                    </div>
+                    <div class="info-item">
+                        <label>P = mg</label>
+                        <value id="weightForce">49.0 N</value>
+                    </div>
+                    <div class="info-item">
+                        <label>Coefficiente attrito (μ<sub>s</sub>)</label>
+                        <value id="muStatic">0.40</value>
+                        <input type="range" id="muSlider" min="0" max="1" value="0.4" step="0.05">
+                    </div>
+                    <div class="info-item" id="muDynamicItem">
+                        <label>Coefficiente attrito dinamico (μ<sub>d</sub>)</label>
+                        <value id="muDynamic">0.30</value>
+                        <input type="range" id="muDSlider" min="0" max="1" value="0.3" step="0.05">
+                    </div>
+                </div>
+
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #e74c3c; height: 4px;"></div>
+                        <span><strong style="color: #e74c3c;">P</strong> - Forza peso</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #3498db;"></div>
+                        <span><strong style="color: #3498db;">N</strong> - Reazione vincolare</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #2ecc71;"></div>
+                        <span><strong style="color: #2ecc71;">F<sub>a</sub></strong> - Attrito statico</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #f39c12; border: 2px dashed #f39c12; background: transparent;"></div>
+                        <span><strong style="color: #f39c12;">P<sub>∥</sub></strong> - Componente parallela</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #9b59b6; border: 2px dashed #9b59b6; background: transparent;"></div>
+                        <span><strong style="color: #9b59b6;">P<sub>⊥</sub></strong> - Componente perpendicolare</span>
+                    </div>
+                </div>
+
+                <div class="instructions">
+                    💡 Trascina con il mouse per modificare l'inclinazione
+                </div>
+            </div>
+            
+            <canvas id="canvas" width="700" height="500"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Parametri fisici
+        let angle = 30; // gradi
+        let mass = 5.0; // kg
+        const g = 9.81; // m/s²
+        let mu_s = 0.4; // coefficiente attrito statico
+        let mu_d = 0.3; // coefficiente attrito dinamico
+        
+        // Parametri grafici
+        const scale = 30; // pixel per unità di forza
+        const blockSize = 50;
+        
+        let isDragging = false;
+        
+        function drawArrow(x, y, dx, dy, color, label, lineWidth = 3, dashed = false) {
+            const length = Math.sqrt(dx * dx + dy * dy);
+            if (length < 1) return;
+            
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = lineWidth;
+            
+            if (dashed) {
+                ctx.setLineDash([8, 5]);
+            }
+            
+            // Linea
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + dx, y + dy);
+            ctx.stroke();
+            
+            ctx.setLineDash([]);
+            
+            // Punta freccia
+            const headlen = 12;
+            const vectorAngle = Math.atan2(dy, dx);
+            ctx.beginPath();
+            ctx.moveTo(x + dx, y + dy);
+            ctx.lineTo(x + dx - headlen * Math.cos(vectorAngle - Math.PI / 6), 
+                      y + dy - headlen * Math.sin(vectorAngle - Math.PI / 6));
+            ctx.lineTo(x + dx - headlen * Math.cos(vectorAngle + Math.PI / 6), 
+                      y + dy - headlen * Math.sin(vectorAngle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+            
+            // Etichetta
+            if (label) {
+                ctx.font = 'bold 16px Arial';
+                ctx.fillStyle = color;
+                // Posiziona l'etichetta vicino alla punta della freccia
+                const labelOffset = 20;
+                const labelAngle = vectorAngle + Math.PI / 2;
+                const labelX = x + dx + labelOffset * Math.cos(labelAngle);
+                const labelY = y + dy + labelOffset * Math.sin(labelAngle);
+                ctx.fillText(label, labelX, labelY);
+            }
+            
+            ctx.restore();
+        }
+        
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const angleRad = angle * Math.PI / 180;
+            
+            // Calcolo forze
+            const P = mass * g;
+            const P_parallel = P * Math.sin(angleRad);
+            const P_perp = P * Math.cos(angleRad);
+            const N = P_perp;
+            const F_a_max = mu_s * N; // attrito statico massimo
+            
+            // Determina se il corpo scivola o è fermo
+            let isSliding = P_parallel > F_a_max;
+            let F_a;
+            
+            if (isSliding) {
+                // Se scivola, usa attrito dinamico
+                F_a = mu_d * N;
+            } else {
+                // Se è fermo, attrito statico equilibra la componente parallela
+                F_a = P_parallel;
+            }
+            
+            // Posizione piano inclinato
+            const planeStartX = 80;
+            const planeStartY = 400;
+            const planeLength = 450;
+            const planeEndX = planeStartX + planeLength * Math.cos(angleRad);
+            const planeEndY = planeStartY - planeLength * Math.sin(angleRad);
+            
+            // Disegna piano inclinato
+            ctx.strokeStyle = '#34495e';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(planeStartX, planeStartY);
+            ctx.lineTo(planeEndX, planeEndY);
+            ctx.stroke();
+            
+            // Disegna base (lunghezza fissa)
+            const baseLength = 600;
+            ctx.beginPath();
+            ctx.moveTo(planeStartX - 50, planeStartY);
+            ctx.lineTo(planeStartX - 50 + baseLength, planeStartY);
+            ctx.stroke();
+            
+            // Tratteggio base
+            const numHatches = Math.floor(baseLength / 40);
+            for (let i = 0; i < numHatches; i++) {
+                const x = planeStartX - 30 + i * 40;
+                ctx.beginPath();
+                ctx.moveTo(x, planeStartY);
+                ctx.lineTo(x - 10, planeStartY + 15);
+                ctx.stroke();
+            }
+            
+            // Posizione blocco (circa metà piano)
+            const blockPosRatio = 0.4;
+            // Punto sul piano
+            const planePosX = planeStartX + planeLength * blockPosRatio * Math.cos(angleRad);
+            const planePosY = planeStartY - planeLength * blockPosRatio * Math.sin(angleRad);
+            
+            // Sposto il centro del blocco perpendicolarmente al piano verso l'esterno
+            // in modo che il lato inferiore tocchi il piano
+            const offsetPerp = blockSize / 2;
+            const blockCenterX = planePosX - offsetPerp * Math.sin(angleRad);
+            const blockCenterY = planePosY - offsetPerp * Math.cos(angleRad);
+            
+            // Disegna blocco
+            ctx.save();
+            ctx.translate(blockCenterX, blockCenterY);
+            ctx.rotate(-angleRad);
+            ctx.fillStyle = '#e8e8e8';
+            ctx.strokeStyle = '#34495e';
+            ctx.lineWidth = 2;
+            ctx.fillRect(-blockSize/2, -blockSize/2, blockSize, blockSize);
+            ctx.strokeRect(-blockSize/2, -blockSize/2, blockSize, blockSize);
+            ctx.restore();
+            
+            // Punto di applicazione forze
+            const forceOriginX = blockCenterX;
+            const forceOriginY = blockCenterY;
+            
+            // 1. Forza peso P (verticale verso il basso) - ROSSO
+            const P_vector_length = P * scale / 10;
+            drawArrow(forceOriginX, forceOriginY, 0, P_vector_length, '#e74c3c', 'P', 4);
+            
+            // 2. Componente parallela P∥ (lungo il piano verso il basso) - ARANCIONE TRATTEGGIATO
+            // Direzione lungo il piano verso il basso (da destra a sinistra lungo il piano)
+            const P_par_x = -P_parallel * scale / 10 * Math.cos(angleRad);
+            const P_par_y = P_parallel * scale / 10 * Math.sin(angleRad);
+            drawArrow(forceOriginX, forceOriginY, P_par_x, P_par_y, '#f39c12', 'P∥', 3, true);
+            
+            // 3. Componente perpendicolare P⊥ (perpendicolare al piano verso il piano) - VIOLA TRATTEGGIATO
+            // Direzione perpendicolare al piano (verso il piano, dentro)
+            const P_perp_x = P_perp * scale / 10 * Math.sin(angleRad);
+            const P_perp_y = P_perp * scale / 10 * Math.cos(angleRad);
+            drawArrow(forceOriginX, forceOriginY, P_perp_x, P_perp_y, '#9b59b6', 'P⊥', 3, true);
+            
+            // 4. Reazione vincolare N (PERPENDICOLARE al piano, verso l'esterno) - BLU
+            // Deve essere esattamente perpendicolare al piano, opposta a P⊥
+            const N_x = -N * scale / 10 * Math.sin(angleRad);
+            const N_y = -N * scale / 10 * Math.cos(angleRad);
+            drawArrow(forceOriginX, forceOriginY, N_x, N_y, '#3498db', '', 4);
+            
+            // Etichetta N posizionata vicino alla punta della freccia
+            ctx.save();
+            ctx.font = 'bold 16px Arial';
+            ctx.fillStyle = '#3498db';
+            const vectorAngleN = Math.atan2(N_y, N_x);
+            const labelOffset = 15;
+            const labelAngleN = vectorAngleN + Math.PI / 2;
+            const N_labelX = forceOriginX + N_x + labelOffset * Math.cos(labelAngleN);
+            const N_labelY = forceOriginY + N_y + labelOffset * Math.sin(labelAngleN);
+            ctx.fillText('N', N_labelX, N_labelY);
+            ctx.restore();
+            
+            // 5. Forza di attrito Fa (PARALLELA al piano, verso l'alto lungo il piano) - VERDE
+            // Deve essere esattamente parallela al piano, opposta a P∥, verso l'alto
+            const F_a_x = F_a * scale / 10 * Math.cos(angleRad);
+            const F_a_y = -F_a * scale / 10 * Math.sin(angleRad);
+            drawArrow(forceOriginX, forceOriginY, F_a_x, F_a_y, '#2ecc71', '', 4);
+            
+            // Etichetta Fa posizionata sopra la freccia (perpendicolare al piano)
+            ctx.save();
+            ctx.font = 'bold 16px Arial';
+            ctx.fillStyle = '#2ecc71';
+            const Fa_labelX = forceOriginX + F_a_x / 2 - 15 * Math.sin(angleRad);
+            const Fa_labelY = forceOriginY + F_a_y / 2 - 15 * Math.cos(angleRad);
+            ctx.fillText('Fa', Fa_labelX, Fa_labelY);
+            ctx.restore();
+            
+            // Disegna angolo
+            ctx.strokeStyle = '#34495e';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            const arcRadius = 50;
+            ctx.arc(planeStartX, planeStartY, arcRadius, -angleRad, 0);
+            ctx.stroke();
+            
+            // Etichetta angolo
+            ctx.fillStyle = '#34495e';
+            ctx.font = 'bold 18px Arial';
+            const labelAngleX = planeStartX + arcRadius * 1.5 * Math.cos(-angleRad / 2);
+            const labelAngleY = planeStartY + arcRadius * 1.5 * Math.sin(-angleRad / 2);
+            ctx.fillText('θ', labelAngleX, labelAngleY);
+            
+            // Aggiorna valori
+            document.getElementById('angle').textContent = angle.toFixed(1) + '°';
+            document.getElementById('mass').textContent = mass.toFixed(1) + ' kg';
+            document.getElementById('weightForce').textContent = P.toFixed(1) + ' N';
+            document.getElementById('muStatic').textContent = mu_s.toFixed(2);
+            document.getElementById('muDynamic').textContent = mu_d.toFixed(2);
+            
+            // Disegna stato del corpo in alto nel canvas
+            ctx.save();
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            
+            if (isSliding) {
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillText('⚠️ Il corpo scivola', canvas.width / 2, 40);
+            } else {
+                ctx.fillStyle = '#2ecc71';
+                ctx.fillText('✓ Il corpo è fermo', canvas.width / 2, 40);
+            }
+            
+            ctx.restore();
+        }
+        
+        // Eventi mouse
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            const planeStartX = 80;
+            const planeStartY = 400;
+            
+            const dx = mouseX - planeStartX;
+            const dy = planeStartY - mouseY;
+            
+            let newAngle = Math.atan2(dy, dx) * 180 / Math.PI;
+            newAngle = Math.max(0, Math.min(85, newAngle));
+            
+            angle = newAngle;
+            document.getElementById('angleSlider').value = angle;
+            draw();
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            isDragging = false;
+        });
+        
+        // Event listener per gli slider
+        document.getElementById('angleSlider').addEventListener('input', (e) => {
+            angle = parseFloat(e.target.value);
+            draw();
+        });
+        
+        document.getElementById('massSlider').addEventListener('input', (e) => {
+            mass = parseFloat(e.target.value);
+            draw();
+        });
+        
+        document.getElementById('muSlider').addEventListener('input', (e) => {
+            mu_s = parseFloat(e.target.value);
+            // Verifica che mu_d sia sempre minore di mu_s
+            if (mu_d >= mu_s) {
+                mu_d = Math.max(0, mu_s - 0.05);
+                document.getElementById('muDSlider').value = mu_d;
+            }
+            draw();
+        });
+        
+        document.getElementById('muDSlider').addEventListener('input', (e) => {
+            let newMuD = parseFloat(e.target.value);
+            // Verifica che mu_d sia sempre minore di mu_s
+            if (newMuD >= mu_s) {
+                mu_d = Math.max(0, mu_s - 0.05);
+                document.getElementById('muDSlider').value = mu_d;
+            } else {
+                mu_d = newMuD;
+            }
+            draw();
+        });
+        
+        // Disegno iniziale
+        draw();
+    </script>
+</body>
+</html>
